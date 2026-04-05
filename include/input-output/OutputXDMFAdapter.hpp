@@ -26,7 +26,8 @@ class OutputXDMFAdapter : public OutputAdapter {
 public:
     /** Constructor of OutputXDMFAdapter object
      */
-    OutputXDMFAdapter(const char* xdmf_file_path, const char* hdf5_file_path);
+    OutputXDMFAdapter();
+    OutputXDMFAdapter(const char* xdmf_file_path, const char* hdf5_file_path = "auto.hdf5");
 
     /** Destructor of OutputXDMFAdapter object */
     ~OutputXDMFAdapter();

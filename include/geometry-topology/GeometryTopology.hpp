@@ -19,7 +19,7 @@
 class GeometryTopology {
 public:
     /** Enumeration of GeometryTopology type */
-    enum Type {VERTEX, EDGE, WIRE, FACE, SHELL, CELL};
+    enum Type {VERTEX, EDGE, WIRE, FACE, SHELL, CELL, COMPOSITE};
 
     /** Constructor of GeometryTopology object
      */

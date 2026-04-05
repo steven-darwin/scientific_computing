@@ -22,6 +22,7 @@ class OutputHDF5Adapter : public OutputAdapter {
 public:
     /** Constructor of OutputHDF5Adapter object
      */
+    OutputHDF5Adapter();
     OutputHDF5Adapter(const char* hdf5_file_path);
 
     /** Destructor of OutputHDF5Adapter object */

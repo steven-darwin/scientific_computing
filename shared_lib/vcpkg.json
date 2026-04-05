@@ -1,0 +1,9 @@
+{
+    "dependencies": [
+        "boost",
+        "gtest",
+        "hdf5",
+        "libxml2",
+        "tiff"
+    ]
+}

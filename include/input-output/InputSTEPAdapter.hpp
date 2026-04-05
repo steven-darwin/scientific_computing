@@ -36,6 +36,7 @@ class InputSTEPAdapter : public InputAdapter {
 public:
     /** Constructor of InputSTEPAdapter object
      */
+    InputSTEPAdapter();
     InputSTEPAdapter(const char* step_file_path);
 
     /** Destructor of InputSTEPAdapter object */

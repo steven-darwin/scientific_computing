@@ -13,7 +13,3 @@
 InputOutputAdapter::InputOutputAdapter() {
     // TBA
 }
-
-InputOutputAdapter::~InputOutputAdapter() {
-    // TBA
-}

@@ -28,6 +28,7 @@ class InputHDF5Adapter : public InputAdapter {
 public:
     /** Constructor of InputHDF5Adapter object
      */
+    InputHDF5Adapter();
     InputHDF5Adapter(const char* hdf5_file_path);
 
     /** Destructor of InputHDF5Adapter object */

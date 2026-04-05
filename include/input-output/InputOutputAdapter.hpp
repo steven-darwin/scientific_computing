@@ -11,6 +11,8 @@
 #ifndef IO_INPUT_OUTPUT_ADAPTER_HPP
 #define IO_INPUT_OUTPUT_ADAPTER_HPP
 
+#include "geometry-topology/GeometryTopology.hpp"
+
 class InputOutputAdapter {
 public:
     /** Constructor of InputOutputAdapter object
@@ -18,7 +20,7 @@ public:
     InputOutputAdapter();
 
     /** Destructor of Inputdapter object */
-    ~InputOutputAdapter();
+    virtual ~InputOutputAdapter() = default;
 
 private:
 

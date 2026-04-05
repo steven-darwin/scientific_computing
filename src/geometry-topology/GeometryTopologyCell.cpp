@@ -44,3 +44,7 @@ void GeometryTopologyCell::getDescendants(std::unordered_map<std::shared_ptr<Geo
         return;
     }
 }
+
+std::shared_ptr<GeometryTopologyShell> GeometryTopologyCell::getShell(unsigned int shell_idx) {
+    return _shells[shell_idx];
+}

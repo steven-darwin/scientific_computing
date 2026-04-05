@@ -18,7 +18,11 @@
 class GeometryTopologyVertex : public GeometryTopology {
 public:
     /** Enumeration of GeometryTopologyVertex coordinate */
-    enum Coordinate {X, Y, Z};
+    enum Coordinate {
+        X = 0, 
+        Y = 1, 
+        Z = 2
+    };
 
     /** Constructor of GeometryTopologyVertex object
      */

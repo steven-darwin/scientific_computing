@@ -20,7 +20,8 @@ class InputXDMFAdapter : public InputAdapter {
 public:
     /** Constructor of InputXDMFAdapter object
      */
-    InputXDMFAdapter(const char* xdmf_file_path, const char* hdf5_file_path);
+    InputXDMFAdapter();
+    InputXDMFAdapter(const char* xdmf_file_path, const char* hdf5_file_path = "auto.hdf5");
 
     /** Destructor of InputXDMFAdapter object */
     ~InputXDMFAdapter();

@@ -30,9 +30,12 @@ public:
     /** Method that traverse GeometryTopologyCell data structure and return set of GeometryTopology object with particular type */
     void getDescendants(std::unordered_map<std::shared_ptr<GeometryTopology>, unsigned int>& list, GeometryTopology::Type type);
 
+    /** Method to get address of shell on the list of shellss that build this cell */
+    std::shared_ptr<GeometryTopologyShell> getShell(unsigned int shell_idx);
+
 private:
     /** Attribute to store list of shells that build this cell */
-    std::array < std::shared_ptr<GeometryTopologyShell> , 2 > _shells;
+    std::array<std::shared_ptr<GeometryTopologyShell>, 2> _shells;
 };
 
 #endif

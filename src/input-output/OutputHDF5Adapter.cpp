@@ -22,7 +22,6 @@
 
 OutputHDF5Adapter::OutputHDF5Adapter(const char* hdf5_file_path) {
     _hdf5FilePath = hdf5_file_path;
-
 }
 
 OutputHDF5Adapter::~OutputHDF5Adapter() {

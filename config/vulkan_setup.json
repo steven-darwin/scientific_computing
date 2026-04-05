@@ -1,0 +1,39 @@
+{
+    "window": {
+        "title": "Vulkan",
+        "width": 800,
+        "height": 600
+    },
+    "instance": {
+        "layer": [
+            "VK_LAYER_KHRONOS_validation"
+        ],
+        "extension": [
+            "VK_KHR_surface"
+        ]
+    },
+    "physical_device": {
+        "extension": [
+            "VK_KHR_swapchain"
+        ]
+    },
+    "logical_device": {
+        "queue": {
+            "graphics": {
+                "count": 1
+            },
+            "presentation": {
+                "count": 1
+            }
+        }
+    },
+    "graphics_pipeline": {
+        "shader_file": {
+            "vertex": "../../asset/shaders/vert.spv",
+            "fragment": "../../asset/shaders/frag.spv"
+        }
+    },
+    "runtime": {
+        "max_frames": 2
+    }
+}
