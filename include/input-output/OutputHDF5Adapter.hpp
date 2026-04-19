@@ -11,25 +11,30 @@
 #ifndef IO_OUTPUT_HDF5_ADAPTER_HPP
 #define IO_OUTPUT_HDF5_ADAPTER_HPP
 
+#include <string>
 #include <memory>
+#include <vector>
 
 #include "hdf5.h"
 
 #include "geometry-topology/GeometryTopology.hpp"
-#include "OutputAdapter.hpp"
+#include "input-output/OutputAdapter.hpp"
 
 class OutputHDF5Adapter : public OutputAdapter {
 public:
     /** Constructor of OutputHDF5Adapter object
      */
     OutputHDF5Adapter();
-    OutputHDF5Adapter(const char* hdf5_file_path);
+    OutputHDF5Adapter(std::string hdf5_file_name);
 
     /** Destructor of OutputHDF5Adapter object */
     ~OutputHDF5Adapter();
 
     /** Method to serialize internal neutral data structure to HDF5 file's data */
     void serialize(std::shared_ptr<GeometryTopology> neutral_geometry_topology);
+
+    /** Method to add attribute to HDF5 file's data */
+    void addAttribute(std::vector<std::vector<double>> attribute_data, unsigned int data_inside_element_count, std::string attribute_name, std::string group_name);
 
 private:
     /** Attribute to store the HDF5 file path */
@@ -52,6 +57,7 @@ private:
 
     /** Method to write topology - by shells dataset */
     void writeShellTopologyDataset(std::shared_ptr<GeometryTopology> neutral_geometry_topology, hid_t parent_group);
+
 };
 
 #endif

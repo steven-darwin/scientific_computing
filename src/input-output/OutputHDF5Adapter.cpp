@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <string>
 
 #include "hdf5.h"
 
@@ -20,8 +21,14 @@
 #include "geometry-topology/GeometryTopologyVertex.hpp"
 #include "input-output/OutputHDF5Adapter.hpp"
 
-OutputHDF5Adapter::OutputHDF5Adapter(const char* hdf5_file_path) {
-    _hdf5FilePath = hdf5_file_path;
+OutputHDF5Adapter::OutputHDF5Adapter(std::string hdf5_file_name) {
+    std::string hdf5_file_path = hdf5_file_name;
+
+    char* hdf5_buffer = new char[hdf5_file_path.length() + 1];
+    std::memcpy(hdf5_buffer, hdf5_file_path.c_str(), hdf5_file_path.length());
+    hdf5_buffer[hdf5_file_path.length()] = '\0';
+
+    _hdf5FilePath = hdf5_buffer;
 }
 
 OutputHDF5Adapter::~OutputHDF5Adapter() {
@@ -31,12 +38,70 @@ OutputHDF5Adapter::~OutputHDF5Adapter() {
 void OutputHDF5Adapter::serialize(std::shared_ptr<GeometryTopology> neutral_geometry_topology) {
     hid_t file = H5Fcreate(_hdf5FilePath, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
     hid_t mesh_group = H5Gcreate(file, "mesh", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    hid_t solver_group = H5Gcreate(file, "solver", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
     writeGeometryDataset(neutral_geometry_topology, mesh_group);
     writeWireTopologyDataset(neutral_geometry_topology, mesh_group);
     writeShellTopologyDataset(neutral_geometry_topology, mesh_group);
 
+    H5Gclose(solver_group);
     H5Gclose(mesh_group);
+    H5Fclose(file);
+}
+
+void OutputHDF5Adapter::addAttribute(std::vector<std::vector<double>> attribute_data, unsigned int data_inside_element_count, std::string attribute_name, std::string group_name) {
+    // Preparation
+    hid_t file = H5Fopen(_hdf5FilePath, H5F_ACC_RDWR, H5P_DEFAULT);
+    hid_t group = H5Gopen(file, group_name.c_str(), H5P_DEFAULT);
+
+    std::vector<double> attribute_buffer;
+    for (unsigned int i = 0; i < attribute_data.size(); i++) {
+        for (auto element_iter = attribute_data.begin(); element_iter != attribute_data.end(); element_iter++) {
+            for (auto data_inside_element : (*element_iter)) {
+                attribute_buffer.push_back(data_inside_element);
+            }
+        }
+    }
+
+    // Serialization
+    const hsize_t memory_dataspace_dim[1] = { attribute_buffer.size() };
+    const hsize_t memory_start[1] = { 0 };
+    const hsize_t memory_stride[1] = { data_inside_element_count };
+    const hsize_t memory_count[1] = { attribute_data.size() };
+    const hsize_t memory_block[1] = { data_inside_element_count };
+
+    hid_t memory_dataspace = H5Screate_simple(1, memory_dataspace_dim, nullptr);
+    H5Sselect_hyperslab(memory_dataspace, H5S_SELECT_SET, memory_start, memory_stride, memory_count, memory_block);
+    hid_t memory_datatype = H5Tcopy(H5T_NATIVE_DOUBLE);
+
+    const hsize_t attribute_dataspace_dim[2] = { attribute_data.size(), data_inside_element_count };
+    const hsize_t attribute_start[2] = { 0, 0 };
+    const hsize_t attribute_stride[2] = { 1, data_inside_element_count };
+    const hsize_t attribute_count[2] = { attribute_data.size(), 1 };
+    const hsize_t attribute_block[2] = { 1, data_inside_element_count };
+
+    hid_t attribute_dataspace = H5Screate_simple(2, attribute_dataspace_dim, nullptr);
+    H5Sselect_hyperslab(attribute_dataspace, H5S_SELECT_SET, attribute_start, attribute_stride, attribute_count, attribute_block);
+    hid_t attribute_datatype = H5Tcopy(H5T_NATIVE_DOUBLE);
+
+    hid_t attribute_dataset = H5Dcreate(group, attribute_name.c_str(), attribute_datatype, attribute_dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    if (H5Dwrite(attribute_dataset, memory_datatype, memory_dataspace, attribute_dataspace, H5P_DEFAULT, attribute_buffer.data()) < 0) {
+        std::cout << "Attribute (" << attribute_name << ") Dataset creation is failed." << std::endl;
+    }
+    else {
+        std::cout << "Attribute (" << attribute_name << ") Dataset creation is success." << std::endl;
+    }
+
+    // Resource Cleaning
+    H5Sclose(memory_dataspace);
+    H5Tclose(memory_datatype);
+
+    H5Sclose(attribute_dataspace);
+    H5Tclose(attribute_datatype);
+
+    H5Dclose(attribute_dataset);
+
+    H5Gclose(group);
     H5Fclose(file);
 }
 

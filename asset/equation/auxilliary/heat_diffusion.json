@@ -1,0 +1,25 @@
+{
+    "constants": [
+        {
+            "id": "c_1",
+            "name": "boltzmann constant",
+            "type": "material_property",
+            "symbol": "k"
+        }
+    ],
+    "variables": [
+        {
+            "id": "v_1",
+            "name": "Temperature",
+            "symbol": "T",
+            "function_ptr": null
+        }
+    ],
+    "terms": [
+        {
+            "id": "t_1",
+            "type": "composite",
+            "terms": []
+        }
+    ]
+}

@@ -11,6 +11,7 @@
 #ifndef IO_INPUT_XDMF_ADAPTER_HPP
 #define IO_INPUT_XDMF_ADAPTER_HPP
 
+#include <string>
 #include <memory>
 
 #include "geometry-topology/GeometryTopology.hpp"
@@ -21,7 +22,7 @@ public:
     /** Constructor of InputXDMFAdapter object
      */
     InputXDMFAdapter();
-    InputXDMFAdapter(const char* xdmf_file_path, const char* hdf5_file_path = "auto.hdf5");
+    InputXDMFAdapter(std::string xdmf_file_name, std::string hdf5_file_name = "default");
 
     /** Destructor of InputXDMFAdapter object */
     ~InputXDMFAdapter();

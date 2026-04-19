@@ -19,8 +19,14 @@
 #include "geometry-topology/GeometryTopology.hpp"
 #include "input-output/InputHDF5Adapter.hpp"
 
-InputHDF5Adapter::InputHDF5Adapter(const char* hdf5_file_path) {
-    _hdf5FilePath = hdf5_file_path;
+InputHDF5Adapter::InputHDF5Adapter(std::string hdf5_file_name) {
+    std::string hdf5_file_path = hdf5_file_name;
+
+    char* hdf5_buffer = new char[hdf5_file_path.length() + 1];
+    std::memcpy(hdf5_buffer, hdf5_file_path.c_str(), hdf5_file_path.length());
+    hdf5_buffer[hdf5_file_path.length()] = '\0';
+
+    _hdf5FilePath = hdf5_buffer;
 }
 
 InputHDF5Adapter::~InputHDF5Adapter() {
@@ -28,6 +34,8 @@ InputHDF5Adapter::~InputHDF5Adapter() {
 }
 
 std::shared_ptr<GeometryTopology> InputHDF5Adapter::deserialize() {
+    std::cout << _hdf5FilePath << std::endl;
+
     hid_t file = H5Fopen(_hdf5FilePath, H5F_ACC_RDONLY, H5P_DEFAULT);
     hid_t mesh_group = H5Gopen(file, "mesh", H5P_DEFAULT);
 
@@ -37,13 +45,8 @@ std::shared_ptr<GeometryTopology> InputHDF5Adapter::deserialize() {
 
     H5Gclose(mesh_group);
     H5Fclose(file);
-
-    std::cout << "----------------------------------------------------" << std::endl;
-    std::cout << "Cell " << 0 << std::endl;
-    std::shared_ptr<GeometryTopologyCell> cell = std::make_shared<GeometryTopologyCell>(_shellList[0], _shellList[0]->reverseCopy());
-    std::cout << "Address: " << cell << std::endl;
     
-    return cell;
+    return _composite;
 }
 
 void InputHDF5Adapter::readGeometryDataset(hid_t parent_group) {
@@ -244,7 +247,7 @@ void InputHDF5Adapter::readShellTopologyDataset(hid_t parent_group) {
         std::cout << "Shell Topology Dataset fetching is success." << std::endl;
     }
 
-    // GeometryTopologyFace, GeometryTopologyShell and GeometryTopologyCell Creation
+    // GeometryTopologyFace, GeometryTopologyShell, GeometryTopologyCell, and GeometryTopologyComposite Creation
     std::vector<std::shared_ptr<GeometryTopologyFace>> face_list;
     for (auto wire : _wireList) {
         std::cout << "Face " << face_list.size() << std::endl;
@@ -257,11 +260,16 @@ void InputHDF5Adapter::readShellTopologyDataset(hid_t parent_group) {
             std::shared_ptr<GeometryTopologyShell> shell = std::make_shared<GeometryTopologyShell>();
 
             for (unsigned int j = 0; j < shell_topology_dataspace_dim[1]; j++) {
-                shell->addFace(face_list[i + j], 0);
+                shell->addFace(face_list[wire_on_shell_buffer[i + j]], 0);
             }
 
             _shellList.push_back(shell);
         }
+    }
+
+    _composite = std::make_shared<GeometryTopologyComposite>();
+    for (auto shell : _shellList) {
+        _composite->addCell(std::make_shared<GeometryTopologyCell>(shell, shell->reverseCopy()));
     }
 
     // Resource Cleaning

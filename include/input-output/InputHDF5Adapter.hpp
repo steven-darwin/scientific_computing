@@ -11,11 +11,13 @@
 #ifndef IO_INPUT_HDF5_ADAPTER_HPP
 #define IO_INPUT_HDF5_ADAPTER_HPP
 
+#include <string>
 #include <memory>
 
 #include "hdf5.h"
 
 #include "geometry-topology/GeometryTopology.hpp"
+#include "geometry-topology/GeometryTopologyComposite.hpp"
 #include "geometry-topology/GeometryTopologyCell.hpp"
 #include "geometry-topology/GeometryTopologyShell.hpp"
 #include "geometry-topology/GeometryTopologyFace.hpp"
@@ -29,7 +31,7 @@ public:
     /** Constructor of InputHDF5Adapter object
      */
     InputHDF5Adapter();
-    InputHDF5Adapter(const char* hdf5_file_path);
+    InputHDF5Adapter(std::string hdf5_file_name);
 
     /** Destructor of InputHDF5Adapter object */
     ~InputHDF5Adapter();
@@ -49,6 +51,9 @@ private:
 
     /** Attribute to store list of GeometryTopologyShell pointer that have been created */
     std::vector<std::shared_ptr<GeometryTopologyShell>> _shellList;
+
+    /** Attribute to store GeometryTopologyComposite pointer that have been created */
+    std::shared_ptr<GeometryTopologyComposite> _composite = nullptr;
 
     /** Method to read geometry dataset */
     void readGeometryDataset(hid_t parent_group);

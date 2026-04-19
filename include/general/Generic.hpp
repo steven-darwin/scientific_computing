@@ -12,6 +12,7 @@
 #define GENERIC_HPP
 
 #include <memory>
+#include <string>
 
 #include "geometry-topology/GeometryTopology.hpp"
 
@@ -24,7 +25,7 @@ namespace scmp {
     /** Struct of Adapter metadata */
     struct AdapterInfo {
         scmp::FileExtension _fileExtension;
-        const char* _filePath;
+        std::string _filePath;
         std::shared_ptr<InputOutputAdapter> _adapterObj;
         std::shared_ptr<GeometryTopology> _neutralGeometryTopology;
     };

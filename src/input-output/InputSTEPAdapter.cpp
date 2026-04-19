@@ -9,6 +9,7 @@
  */
 
 #include <memory>
+#include <iostream>
 #include <string>
 
 #include "TopExp.hxx"
@@ -22,8 +23,14 @@
 #include "input-output/InputSTEPAdapter.hpp"
 
 
-InputSTEPAdapter::InputSTEPAdapter(const char* step_file_path) {
-	_stepFilePath = step_file_path;
+InputSTEPAdapter::InputSTEPAdapter(std::string step_file_name) {
+	std::string step_file_path = "../../asset/STEP/" + step_file_name + ".STEP";
+
+	char* step_buffer = new char[step_file_path.length() + 1];
+	std::memcpy(step_buffer, step_file_path.c_str(), step_file_path.length());
+	step_buffer[step_file_path.length()] = '\0';
+
+	_stepFilePath = step_buffer;
 }
 
 InputSTEPAdapter::~InputSTEPAdapter() {

@@ -14,8 +14,6 @@
 #include <unordered_map>
 #include <memory>
 
-#include "GeometryTopology.hpp"
-
 class GeometryTopology {
 public:
     /** Enumeration of GeometryTopology type */

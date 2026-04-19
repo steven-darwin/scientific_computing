@@ -37,7 +37,7 @@ public:
     /** Constructor of InputSTEPAdapter object
      */
     InputSTEPAdapter();
-    InputSTEPAdapter(const char* step_file_path);
+    InputSTEPAdapter(std::string step_file_name);
 
     /** Destructor of InputSTEPAdapter object */
     ~InputSTEPAdapter();
