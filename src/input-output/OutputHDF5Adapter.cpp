@@ -14,6 +14,9 @@
 #include <unordered_set>
 #include <vector>
 #include <string>
+#include <array>
+#include <cmath>
+#include <tuple>
 
 #include "hdf5.h"
 
@@ -36,13 +39,17 @@ OutputHDF5Adapter::~OutputHDF5Adapter() {
 }
 
 void OutputHDF5Adapter::serialize(std::shared_ptr<GeometryTopology> neutral_geometry_topology) {
+    // do nothing
+}
+
+void OutputHDF5Adapter::serialize(std::shared_ptr<GeometryTopology> neutral_geometry_topology, std::vector<std::tuple<GeometryTopology::Type, std::string>>& attribute_metadata) {
     hid_t file = H5Fcreate(_hdf5FilePath, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
     hid_t mesh_group = H5Gcreate(file, "mesh", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     hid_t solver_group = H5Gcreate(file, "solver", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-    writeGeometryDataset(neutral_geometry_topology, mesh_group);
-    writeWireTopologyDataset(neutral_geometry_topology, mesh_group);
-    writeShellTopologyDataset(neutral_geometry_topology, mesh_group);
+    writeGeometryDataset(neutral_geometry_topology, mesh_group, solver_group, attribute_metadata);
+    writeWireTopologyDataset(neutral_geometry_topology, mesh_group, solver_group, attribute_metadata);
+    writeShellTopologyDataset(neutral_geometry_topology, mesh_group, solver_group, attribute_metadata);
 
     H5Gclose(solver_group);
     H5Gclose(mesh_group);
@@ -50,67 +57,171 @@ void OutputHDF5Adapter::serialize(std::shared_ptr<GeometryTopology> neutral_geom
 }
 
 void OutputHDF5Adapter::addAttribute(std::vector<std::vector<double>> attribute_data, unsigned int data_inside_element_count, std::string attribute_name, std::string group_name) {
-    // Preparation
     hid_t file = H5Fopen(_hdf5FilePath, H5F_ACC_RDWR, H5P_DEFAULT);
-    hid_t group = H5Gopen(file, group_name.c_str(), H5P_DEFAULT);
 
-    std::vector<double> attribute_buffer;
-    for (unsigned int i = 0; i < attribute_data.size(); i++) {
-        for (auto element_iter = attribute_data.begin(); element_iter != attribute_data.end(); element_iter++) {
-            for (auto data_inside_element : (*element_iter)) {
-                attribute_buffer.push_back(data_inside_element);
-            }
+    // Parsing Vertex Data
+    std::unordered_set<unsigned int> outer_vertex_idx;
+
+    {
+        hid_t mesh_group = H5Gopen(file, "mesh", H5P_DEFAULT);
+
+        std::vector<double> vertex_coordinate_buffer;
+
+        hid_t geometry_dataset = H5Dopen(mesh_group, "geometry", H5P_DEFAULT);
+        hid_t geometry_dataspace = H5Dget_space(geometry_dataset);
+        hid_t geometry_datatype = H5Dget_type(geometry_dataset);
+
+        hsize_t geometry_dataspace_dim[2];
+        H5Sget_simple_extent_dims(geometry_dataspace, geometry_dataspace_dim, nullptr);
+
+        vertex_coordinate_buffer.resize(geometry_dataspace_dim[0] * geometry_dataspace_dim[1]);
+
+        const hsize_t geometry_start[2] = { 0, 0 };
+        const hsize_t geometry_stride[2] = { 1, geometry_dataspace_dim[1] };
+        const hsize_t geometry_count[2] = { geometry_dataspace_dim[0], 1 };
+        const hsize_t geometry_block[2] = { 1, geometry_dataspace_dim[1] };
+
+        H5Sselect_hyperslab(geometry_dataspace, H5S_SELECT_SET, geometry_start, geometry_stride, geometry_count, geometry_block);
+
+        const hsize_t memory_dataspace_dim[1] = { vertex_coordinate_buffer.size() };
+        const hsize_t memory_start[1] = { 0 };
+        const hsize_t memory_stride[1] = { geometry_dataspace_dim[1] };
+        const hsize_t memory_count[1] = { geometry_dataspace_dim[0] };
+        const hsize_t memory_block[1] = { geometry_dataspace_dim[1] };
+
+        hid_t memory_dataspace = H5Screate_simple(1, memory_dataspace_dim, nullptr);
+        H5Sselect_hyperslab(memory_dataspace, H5S_SELECT_SET, memory_start, memory_stride, memory_count, memory_block);
+        hid_t memory_datatype = H5Tcopy(H5T_NATIVE_DOUBLE);
+
+        if (H5Dread(geometry_dataset, memory_datatype, memory_dataspace, geometry_dataspace, H5P_DEFAULT, vertex_coordinate_buffer.data()) < 0) {
+            std::cout << "Geometry Dataset fetching is failed." << std::endl;
         }
+        else {
+            std::cout << "Geometry Dataset fetching is success." << std::endl;
+        }
+
+        H5Sclose(memory_dataspace);
+        H5Tclose(memory_datatype);
+
+        H5Sclose(geometry_dataspace);
+        H5Tclose(geometry_datatype);
+
+        H5Dclose(geometry_dataset);
+
+        H5Gclose(mesh_group);
+
+    //    std::array<double, 3> min_coordinate, max_coordinate;
+
+    //    for (unsigned int i = 0; i < vertex_coordinate_buffer.size(); i++) {
+    //        if (i % geometry_dataspace_dim[1] == 0) {
+    //            for (unsigned int j = 0; j < 3; j++) {
+    //                if (i == 0) {
+    //                    min_coordinate[j] = vertex_coordinate_buffer[i + j];
+    //                    max_coordinate[j] = vertex_coordinate_buffer[i + j];
+    //                }
+    //                else {
+    //                    if (min_coordinate[j] > vertex_coordinate_buffer[i + j]) {
+    //                        min_coordinate[j] = vertex_coordinate_buffer[i + j];
+    //                    }
+
+    //                    if (max_coordinate[j] < vertex_coordinate_buffer[i + j]) {
+    //                        max_coordinate[j] = vertex_coordinate_buffer[i + j];
+    //                    }
+    //                }
+    //            }
+    //        }
+    //    }
+
+    //    for (unsigned int i = 0; i < vertex_coordinate_buffer.size(); i++) {
+    //        if (i % geometry_dataspace_dim[1] == 0) {
+    //            bool is_outer_vertex = false;
+    //            
+    //            if (!is_outer_vertex) {
+    //                for (unsigned int j = 0; j < 3; j++) {
+    //                    if (std::abs(min_coordinate[j] - vertex_coordinate_buffer[i + j]) < 0.001) {
+    //                        is_outer_vertex = true;
+    //                        break;
+    //                    }
+    //                }
+    //            }
+
+    //            if (!is_outer_vertex) {
+    //                for (unsigned int j = 0; j < 3; j++) {
+    //                    if (std::abs(max_coordinate[j] - vertex_coordinate_buffer[i + j]) < 0.001) {
+    //                        is_outer_vertex = true;
+    //                        break;
+    //                    }
+    //                }
+    //            }
+
+    //            if (is_outer_vertex) {
+    //                outer_vertex_idx.insert(i / geometry_dataspace_dim[1]);
+    //            }
+    //        }
+    //    }
     }
 
-    // Serialization
-    const hsize_t memory_dataspace_dim[1] = { attribute_buffer.size() };
-    const hsize_t memory_start[1] = { 0 };
-    const hsize_t memory_stride[1] = { data_inside_element_count };
-    const hsize_t memory_count[1] = { attribute_data.size() };
-    const hsize_t memory_block[1] = { data_inside_element_count };
+    //// Preparation for Attribute Addition
+    //hid_t group = H5Gopen(file, group_name.c_str(), H5P_DEFAULT);
 
-    hid_t memory_dataspace = H5Screate_simple(1, memory_dataspace_dim, nullptr);
-    H5Sselect_hyperslab(memory_dataspace, H5S_SELECT_SET, memory_start, memory_stride, memory_count, memory_block);
-    hid_t memory_datatype = H5Tcopy(H5T_NATIVE_DOUBLE);
+    //std::vector<double> attribute_buffer;
+    //for (unsigned int i = 0; i < attribute_data.size(); i++) {
+    //    for (auto data_inside_element : attribute_data[i]) {
+    //        attribute_buffer.push_back(outer_vertex_idx.contains(i) ? 100 : data_inside_element);
+    //        //attribute_buffer.push_back(data_inside_element);
+    //    }
+    //}
 
-    const hsize_t attribute_dataspace_dim[2] = { attribute_data.size(), data_inside_element_count };
-    const hsize_t attribute_start[2] = { 0, 0 };
-    const hsize_t attribute_stride[2] = { 1, data_inside_element_count };
-    const hsize_t attribute_count[2] = { attribute_data.size(), 1 };
-    const hsize_t attribute_block[2] = { 1, data_inside_element_count };
+    //// Serialization
+    //const hsize_t memory_dataspace_dim[1] = { attribute_buffer.size() };
+    //const hsize_t memory_start[1] = { 0 };
+    //const hsize_t memory_stride[1] = { data_inside_element_count };
+    //const hsize_t memory_count[1] = { attribute_data.size() };
+    //const hsize_t memory_block[1] = { data_inside_element_count };
 
-    hid_t attribute_dataspace = H5Screate_simple(2, attribute_dataspace_dim, nullptr);
-    H5Sselect_hyperslab(attribute_dataspace, H5S_SELECT_SET, attribute_start, attribute_stride, attribute_count, attribute_block);
-    hid_t attribute_datatype = H5Tcopy(H5T_NATIVE_DOUBLE);
+    //hid_t memory_dataspace = H5Screate_simple(1, memory_dataspace_dim, nullptr);
+    //H5Sselect_hyperslab(memory_dataspace, H5S_SELECT_SET, memory_start, memory_stride, memory_count, memory_block);
+    //hid_t memory_datatype = H5Tcopy(H5T_NATIVE_DOUBLE);
 
-    hid_t attribute_dataset = H5Dcreate(group, attribute_name.c_str(), attribute_datatype, attribute_dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-    if (H5Dwrite(attribute_dataset, memory_datatype, memory_dataspace, attribute_dataspace, H5P_DEFAULT, attribute_buffer.data()) < 0) {
-        std::cout << "Attribute (" << attribute_name << ") Dataset creation is failed." << std::endl;
-    }
-    else {
-        std::cout << "Attribute (" << attribute_name << ") Dataset creation is success." << std::endl;
-    }
+    //const hsize_t attribute_dataspace_dim[2] = { attribute_data.size(), data_inside_element_count };
+    //const hsize_t attribute_start[2] = { 0, 0 };
+    //const hsize_t attribute_stride[2] = { 1, data_inside_element_count };
+    //const hsize_t attribute_count[2] = { attribute_data.size(), 1 };
+    //const hsize_t attribute_block[2] = { 1, data_inside_element_count };
 
-    // Resource Cleaning
-    H5Sclose(memory_dataspace);
-    H5Tclose(memory_datatype);
+    //hid_t attribute_dataspace = H5Screate_simple(2, attribute_dataspace_dim, nullptr);
+    //H5Sselect_hyperslab(attribute_dataspace, H5S_SELECT_SET, attribute_start, attribute_stride, attribute_count, attribute_block);
+    //hid_t attribute_datatype = H5Tcopy(H5T_NATIVE_DOUBLE);
 
-    H5Sclose(attribute_dataspace);
-    H5Tclose(attribute_datatype);
+    //hid_t attribute_dataset = H5Dcreate(group, attribute_name.c_str(), attribute_datatype, attribute_dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    //if (H5Dwrite(attribute_dataset, memory_datatype, memory_dataspace, attribute_dataspace, H5P_DEFAULT, attribute_buffer.data()) < 0) {
+    //    std::cout << "Attribute (" << attribute_name << ") Dataset creation is failed." << std::endl;
+    //}
+    //else {
+    //    std::cout << "Attribute (" << attribute_name << ") Dataset creation is success." << std::endl;
+    //}
 
-    H5Dclose(attribute_dataset);
+    //// Resource Cleaning
+    //H5Sclose(memory_dataspace);
+    //H5Tclose(memory_datatype);
 
-    H5Gclose(group);
+    //H5Sclose(attribute_dataspace);
+    //H5Tclose(attribute_datatype);
+
+    //H5Dclose(attribute_dataset);
+
+    //H5Gclose(group);
     H5Fclose(file);
 }
 
-void OutputHDF5Adapter::writeGeometryDataset(std::shared_ptr<GeometryTopology> neutral_geometry_topology, hid_t parent_group) {
+void OutputHDF5Adapter::writeGeometryDataset(std::shared_ptr<GeometryTopology> neutral_geometry_topology, hid_t mesh_group, hid_t solver_group, std::vector<std::tuple<GeometryTopology::Type, std::string>>& attribute_metadata) {
     
     // Preparation
     neutral_geometry_topology->getDescendants(_vertexList, GeometryTopology::Type::VERTEX);
 
     std::vector<double> vertex_coordinate_buffer;
+    std::unordered_map<std::string, std::tuple<unsigned int, std::shared_ptr<std::vector<double>>>> attribute_buffer_list;
+
     for (unsigned int i = 0; i < _vertexList.size(); i++) {
         for (auto vertex_iter = _vertexList.begin(); vertex_iter != _vertexList.end(); vertex_iter++) {
             if (i == (*vertex_iter).second) {
@@ -118,12 +229,70 @@ void OutputHDF5Adapter::writeGeometryDataset(std::shared_ptr<GeometryTopology> n
                 vertex_coordinate_buffer.push_back(dynamic_cast<GeometryTopologyVertex*>((*vertex_iter).first.get())->getCoordinate(GeometryTopologyVertex::Coordinate::X));
                 vertex_coordinate_buffer.push_back(dynamic_cast<GeometryTopologyVertex*>((*vertex_iter).first.get())->getCoordinate(GeometryTopologyVertex::Coordinate::Y));
                 vertex_coordinate_buffer.push_back(dynamic_cast<GeometryTopologyVertex*>((*vertex_iter).first.get())->getCoordinate(GeometryTopologyVertex::Coordinate::Z));
+
+                std::vector<std::string> attribute_name_list = ((*vertex_iter).first.get())->getAttributeName();
+                for (auto attribute_name_item : attribute_name_list) {
+                    if (i == 0) {
+                        attribute_buffer_list.insert({ attribute_name_item, std::make_tuple(((*vertex_iter).first.get())->getAttributeValue(attribute_name_item).size(), std::make_shared<std::vector<double>>()) });
+                    }
+
+                    for (unsigned int i = 0; i < std::get<0>(attribute_buffer_list.at(attribute_name_item)); i++) {
+                        std::vector<double> attribute_value = ((*vertex_iter).first.get())->getAttributeValue(attribute_name_item);
+                        for (auto attribute_value_item : attribute_value) {
+                            std::get<1>(attribute_buffer_list.at(attribute_name_item))->push_back(attribute_value_item);
+                        }
+                    }
+                }
+
                 break;
             }
         }
     }
 
     // Serialization
+    if (attribute_buffer_list.size() > 0) {
+        for (auto attribute_buffer_iter = attribute_buffer_list.begin(); attribute_buffer_iter != attribute_buffer_list.end(); attribute_buffer_iter++) {
+            attribute_metadata.push_back(std::make_tuple(GeometryTopology::Type::VERTEX, (*attribute_buffer_iter).first));
+
+            const hsize_t memory_dataspace_dim[1] = { std::get<1>((*attribute_buffer_iter).second)->size() };
+            const hsize_t memory_start[1] = { 0 };
+            const hsize_t memory_stride[1] = { std::get<0>((*attribute_buffer_iter).second) };
+            const hsize_t memory_count[1] = { _vertexList.size() };
+            const hsize_t memory_block[1] = { std::get<0>((*attribute_buffer_iter).second) };
+
+            hid_t memory_dataspace = H5Screate_simple(1, memory_dataspace_dim, nullptr);
+            H5Sselect_hyperslab(memory_dataspace, H5S_SELECT_SET, memory_start, memory_stride, memory_count, memory_block);
+            hid_t memory_datatype = H5Tcopy(H5T_NATIVE_DOUBLE);
+
+            const hsize_t attribute_dataspace_dim[2] = { _vertexList.size(), std::get<0>((*attribute_buffer_iter).second) };
+            const hsize_t attribute_start[2] = { 0, 0 };
+            const hsize_t attribute_stride[2] = { 1, std::get<0>((*attribute_buffer_iter).second) };
+            const hsize_t attribute_count[2] = { _vertexList.size(), 1 };
+            const hsize_t attribute_block[2] = { 1, std::get<0>((*attribute_buffer_iter).second) };
+
+            hid_t attribute_dataspace = H5Screate_simple(2, attribute_dataspace_dim, nullptr);
+            H5Sselect_hyperslab(attribute_dataspace, H5S_SELECT_SET, attribute_start, attribute_stride, attribute_count, attribute_block);
+            hid_t attribute_datatype = H5Tcopy(H5T_NATIVE_DOUBLE);
+
+            hid_t attribute_dataset = H5Dcreate(solver_group, (*attribute_buffer_iter).first.c_str(), attribute_datatype, attribute_dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+            if (H5Dwrite(attribute_dataset, memory_datatype, memory_dataspace, attribute_dataspace, H5P_DEFAULT, std::get<1>((*attribute_buffer_iter).second)->data()) < 0) {
+                std::cout << "Attribute (" << (*attribute_buffer_iter).first << ") Dataset creation is failed." << std::endl;
+            }
+            else {
+                std::cout << "Attribute (" << (*attribute_buffer_iter).first << ") Dataset creation is success." << std::endl;
+            }
+
+            // Resource Cleaning
+            H5Sclose(memory_dataspace);
+            H5Tclose(memory_datatype);
+
+            H5Sclose(attribute_dataspace);
+            H5Tclose(attribute_datatype);
+
+            H5Dclose(attribute_dataset);
+        }
+    }
+
     const hsize_t memory_dataspace_dim[1] = { vertex_coordinate_buffer.size() };
     const hsize_t memory_start[1] = { 0 };
     const hsize_t memory_stride[1] = { 3 };
@@ -144,7 +313,7 @@ void OutputHDF5Adapter::writeGeometryDataset(std::shared_ptr<GeometryTopology> n
     H5Sselect_hyperslab(geometry_dataspace, H5S_SELECT_SET, geometry_start, geometry_stride, geometry_count, geometry_block);
     hid_t geometry_datatype = H5Tcopy(H5T_NATIVE_DOUBLE);
 
-    hid_t geometry_dataset = H5Dcreate(parent_group, "geometry", geometry_datatype, geometry_dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    hid_t geometry_dataset = H5Dcreate(mesh_group, "geometry", geometry_datatype, geometry_dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     if (H5Dwrite(geometry_dataset, memory_datatype, memory_dataspace, geometry_dataspace, H5P_DEFAULT, vertex_coordinate_buffer.data()) < 0) {
         std::cout << "Geometry Dataset creation is failed." << std::endl;
     }
@@ -162,7 +331,7 @@ void OutputHDF5Adapter::writeGeometryDataset(std::shared_ptr<GeometryTopology> n
     H5Dclose(geometry_dataset);
 }
 
-void OutputHDF5Adapter::writeWireTopologyDataset(std::shared_ptr<GeometryTopology> neutral_geometry_topology, hid_t parent_group) {
+void OutputHDF5Adapter::writeWireTopologyDataset(std::shared_ptr<GeometryTopology> neutral_geometry_topology, hid_t mesh_group, hid_t solver_group, std::vector<std::tuple<GeometryTopology::Type, std::string>>& attribute_metadata) {
 
     // Preparation
     neutral_geometry_topology->getDescendants(_wireList, GeometryTopology::Type::WIRE);
@@ -239,7 +408,7 @@ void OutputHDF5Adapter::writeWireTopologyDataset(std::shared_ptr<GeometryTopolog
     H5Sselect_hyperslab(wire_topology_dataspace, H5S_SELECT_SET, wire_topology_start, wire_topology_stride, wire_topology_count, wire_topology_block);
     hid_t wire_topology_datatype = H5Tcopy(H5T_NATIVE_INT);
 
-    hid_t wire_topology_dataset = H5Dcreate(parent_group, "topology_wire", wire_topology_datatype, wire_topology_dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    hid_t wire_topology_dataset = H5Dcreate(mesh_group, "topology_wire", wire_topology_datatype, wire_topology_dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     if (H5Dwrite(wire_topology_dataset, memory_datatype, memory_dataspace, wire_topology_dataspace, H5P_DEFAULT, vertex_on_wire_buffer.data()) < 0) {
         std::cout << "Wire Topology Dataset creation is failed." << std::endl;
     }
@@ -253,7 +422,7 @@ void OutputHDF5Adapter::writeWireTopologyDataset(std::shared_ptr<GeometryTopolog
     H5Dclose(wire_topology_dataset);
 }
 
-void OutputHDF5Adapter::writeShellTopologyDataset(std::shared_ptr<GeometryTopology> neutral_geometry_topology, hid_t parent_group) {
+void OutputHDF5Adapter::writeShellTopologyDataset(std::shared_ptr<GeometryTopology> neutral_geometry_topology, hid_t mesh_group, hid_t solver_group, std::vector<std::tuple<GeometryTopology::Type, std::string>>& attribute_metadata) {
 
     // Preparation
     neutral_geometry_topology->getDescendants(_shellList, GeometryTopology::Type::SHELL);
@@ -295,7 +464,7 @@ void OutputHDF5Adapter::writeShellTopologyDataset(std::shared_ptr<GeometryTopolo
     H5Sselect_hyperslab(shell_topology_dataspace, H5S_SELECT_SET, shell_topology_start, shell_topology_stride, shell_topology_count, shell_topology_block);
     hid_t shell_topology_datatype = H5Tcopy(H5T_NATIVE_INT);
 
-    hid_t shell_topology_dataset = H5Dcreate(parent_group, "topology_shell", shell_topology_datatype, shell_topology_dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    hid_t shell_topology_dataset = H5Dcreate(mesh_group, "topology_shell", shell_topology_datatype, shell_topology_dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     if (H5Dwrite(shell_topology_dataset, memory_datatype, memory_dataspace, shell_topology_dataspace, H5P_DEFAULT, wire_on_shell_buffer.data()) < 0) {
         std::cout << "Shell Topology Dataset creation is failed." << std::endl;
     }

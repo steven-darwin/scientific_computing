@@ -50,15 +50,17 @@ OutputXDMFAdapter::~OutputXDMFAdapter() {
 }
 
 void OutputXDMFAdapter::serialize(std::shared_ptr<GeometryTopology> neutral_geometry_topology) {
-    OutputHDF5Adapter hdf5Adapter = OutputHDF5Adapter(_hdf5FilePath);
-    hdf5Adapter.serialize(neutral_geometry_topology);
+    std::vector<std::tuple<GeometryTopology::Type, std::string>> attribute_metadata;
 
-    for (auto attribute : _attributeList) {
-        std::string lower_case_attribute_name = std::get<0>(attribute);
-        std::transform(lower_case_attribute_name.begin(), lower_case_attribute_name.end(), lower_case_attribute_name.begin(),
-            [](unsigned char c) { return std::tolower(c); });
-        hdf5Adapter.addAttribute(*(std::get<1>(attribute)), std::get<2>(attribute), lower_case_attribute_name, "solver");
-    }
+    OutputHDF5Adapter hdf5Adapter = OutputHDF5Adapter(_hdf5FilePath);
+    hdf5Adapter.serialize(neutral_geometry_topology, attribute_metadata);
+
+    //for (auto attribute : _attributeList) {
+    //    std::string lower_case_attribute_name = std::get<0>(attribute);
+    //    std::transform(lower_case_attribute_name.begin(), lower_case_attribute_name.end(), lower_case_attribute_name.begin(),
+    //        [](unsigned char c) { return std::tolower(c); });
+    //    hdf5Adapter.addAttribute(*(std::get<1>(attribute)), std::get<2>(attribute), lower_case_attribute_name, "solver");
+    //}
 
     hid_t file = H5Fopen(_hdf5FilePath, H5F_ACC_RDONLY, H5P_DEFAULT);
     shared_ptr<XdmfDomain> domain = XdmfDomain::New();
@@ -79,11 +81,11 @@ void OutputXDMFAdapter::serialize(std::shared_ptr<GeometryTopology> neutral_geom
     solver_grid->setName("Solver");
     domain->insert(solver_grid);
 
-    for (auto attribute : _attributeList) {
-        std::string lower_case_attribute_name = std::get<0>(attribute);
+    for (auto attribute_metadata_item : attribute_metadata) {
+        std::string lower_case_attribute_name = std::get<1>(attribute_metadata_item);
         std::transform(lower_case_attribute_name.begin(), lower_case_attribute_name.end(), lower_case_attribute_name.begin(),
             [](unsigned char c) { return std::tolower(c); });
-        solver_grid->insert(handleCustomAttribute(solver_group, std::get<0>(attribute), GeometryTopology::VERTEX, "/solver/" + lower_case_attribute_name));
+        solver_grid->insert(handleCustomAttribute(solver_group, std::get<1>(attribute_metadata_item), std::get<0>(attribute_metadata_item), "/solver/" + lower_case_attribute_name));
     }
     
     H5Gclose(solver_group);

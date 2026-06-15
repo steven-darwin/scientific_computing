@@ -14,6 +14,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <tuple>
 
 #include "hdf5.h"
 
@@ -32,6 +33,7 @@ public:
 
     /** Method to serialize internal neutral data structure to HDF5 file's data */
     void serialize(std::shared_ptr<GeometryTopology> neutral_geometry_topology);
+    void serialize(std::shared_ptr<GeometryTopology> neutral_geometry_topology, std::vector<std::tuple<GeometryTopology::Type, std::string>>& attribute_metadata);
 
     /** Method to add attribute to HDF5 file's data */
     void addAttribute(std::vector<std::vector<double>> attribute_data, unsigned int data_inside_element_count, std::string attribute_name, std::string group_name);
@@ -50,13 +52,13 @@ private:
     std::unordered_map<std::shared_ptr<GeometryTopology>, unsigned int> _shellList;
 
     /** Method to write geometry dataset */
-    void writeGeometryDataset(std::shared_ptr<GeometryTopology> neutral_geometry_topology, hid_t parent_group);
+    void writeGeometryDataset(std::shared_ptr<GeometryTopology> neutral_geometry_topology, hid_t mesh_group, hid_t solver_group, std::vector<std::tuple<GeometryTopology::Type, std::string>> &attribute_metadata);
 
     /** Method to write topology - by wires dataset */
-    void writeWireTopologyDataset(std::shared_ptr<GeometryTopology> neutral_geometry_topology, hid_t parent_group);
+    void writeWireTopologyDataset(std::shared_ptr<GeometryTopology> neutral_geometry_topology, hid_t mesh_group, hid_t solver_group, std::vector<std::tuple<GeometryTopology::Type, std::string>> &attribute_lmetadata);
 
     /** Method to write topology - by shells dataset */
-    void writeShellTopologyDataset(std::shared_ptr<GeometryTopology> neutral_geometry_topology, hid_t parent_group);
+    void writeShellTopologyDataset(std::shared_ptr<GeometryTopology> neutral_geometry_topology, hid_t mesh_group, hid_t solver_group, std::vector<std::tuple<GeometryTopology::Type, std::string>> &attribute_metadata);
 
 };
 

@@ -13,6 +13,7 @@
 #include <iostream>
 #include <string>
 #include <unordered_map>
+#include <array>
 
 #include "hdf5.h"
 
@@ -39,9 +40,9 @@ std::shared_ptr<GeometryTopology> InputHDF5Adapter::deserialize() {
     hid_t file = H5Fopen(_hdf5FilePath, H5F_ACC_RDONLY, H5P_DEFAULT);
     hid_t mesh_group = H5Gopen(file, "mesh", H5P_DEFAULT);
 
-    readGeometryDataset(mesh_group);
-    readWireTopologyDataset(mesh_group);
-    readShellTopologyDataset(mesh_group);
+    readGeometryDataset(file, mesh_group);
+    readWireTopologyDataset(file, mesh_group);
+    readShellTopologyDataset(file, mesh_group);
 
     H5Gclose(mesh_group);
     H5Fclose(file);
@@ -49,7 +50,7 @@ std::shared_ptr<GeometryTopology> InputHDF5Adapter::deserialize() {
     return _composite;
 }
 
-void InputHDF5Adapter::readGeometryDataset(hid_t parent_group) {
+void InputHDF5Adapter::readGeometryDataset(hid_t file, hid_t parent_group) {
     std::cout << "----------------------------------------------------" << std::endl;
 
     // Deserialization
@@ -88,14 +89,105 @@ void InputHDF5Adapter::readGeometryDataset(hid_t parent_group) {
         std::cout << "Geometry Dataset fetching is success." << std::endl;
     }
 
+    //// Capturing Vertex Attribute
+    //std::vector<double> temperature_buffer;
+
+    //hid_t solver_group = H5Gopen(file, "solver", H5P_DEFAULT);
+
+    //if (solver_group != H5I_INVALID_HID) {
+    //    hid_t temperature_dataset = H5Dopen(solver_group , "temperature", H5P_DEFAULT);
+
+    //    if (temperature_dataset != H5I_INVALID_HID) {
+    //        hid_t temperature_dataspace = H5Dget_space(temperature_dataset);
+    //        hid_t temperature_datatype = H5Dget_type(temperature_dataset);
+
+    //        hsize_t temperature_dataspace_dim[2];
+    //        H5Sget_simple_extent_dims(temperature_dataspace, temperature_dataspace_dim, nullptr);
+
+    //        temperature_buffer.resize(temperature_dataspace_dim[0] * temperature_dataspace_dim[1]);
+
+    //        const hsize_t temperature_start[2] = { 0, 0 };
+    //        const hsize_t temperature_stride[2] = { 1, temperature_dataspace_dim[1] };
+    //        const hsize_t temperature_count[2] = { temperature_dataspace_dim[0], 1 };
+    //        const hsize_t temperature_block[2] = { 1, temperature_dataspace_dim[1] };
+
+    //        H5Sselect_hyperslab(temperature_dataspace, H5S_SELECT_SET, temperature_start, temperature_stride, temperature_count, temperature_block);
+
+    //        const hsize_t memory_dataspace_dim[1] = { temperature_buffer.size() };
+    //        const hsize_t memory_start[1] = { 0 };
+    //        const hsize_t memory_stride[1] = { temperature_dataspace_dim[1] };
+    //        const hsize_t memory_count[1] = { temperature_dataspace_dim[0] };
+    //        const hsize_t memory_block[1] = { temperature_dataspace_dim[1] };
+
+    //        hid_t memory_dataspace = H5Screate_simple(1, memory_dataspace_dim, nullptr);
+    //        H5Sselect_hyperslab(memory_dataspace, H5S_SELECT_SET, memory_start, memory_stride, memory_count, memory_block);
+    //        hid_t memory_datatype = H5Tcopy(H5T_NATIVE_DOUBLE);
+
+    //        if (H5Dread(temperature_dataset, memory_datatype, memory_dataspace, temperature_dataspace, H5P_DEFAULT, temperature_buffer.data()) < 0) {
+    //            std::cout << "Temperature Dataset fetching is failed." << std::endl;
+    //        }
+    //        else {
+    //            std::cout << "Temperature Dataset fetching is success." << std::endl;
+    //        }
+
+    //        // Resource Cleaning
+    //        H5Sclose(memory_dataspace);
+    //        H5Tclose(memory_datatype);
+
+    //        H5Sclose(temperature_dataspace);
+    //        H5Tclose(temperature_datatype);
+
+    //        H5Dclose(temperature_dataset);
+    //    }
+
+    //    H5Gclose(solver_group);
+    //}
+
     // GeometryTopologyVertex Creation
 
+    std::array<double, 3> min_coordinate, max_coordinate;
+
+    for (unsigned int i = 0; i < vertex_coordinate_buffer.size(); i++) {
+        if (i % geometry_dataspace_dim[1] == 0) {
+            for (unsigned int j = 0; j < 3; j++) {
+                if (i == 0) {
+                    min_coordinate[j] = vertex_coordinate_buffer[i + j];
+                    max_coordinate[j] = vertex_coordinate_buffer[i + j];
+                }
+                else {
+                    if (min_coordinate[j] > vertex_coordinate_buffer[i + j]) {
+                        min_coordinate[j] = vertex_coordinate_buffer[i + j];
+                    }
+
+                    if (max_coordinate[j] < vertex_coordinate_buffer[i + j]) {
+                        max_coordinate[j] = vertex_coordinate_buffer[i + j];
+                    }
+                }
+            }
+        }
+    }
 
     for (unsigned int i = 0; i < vertex_coordinate_buffer.size(); i++) {
         if (i % geometry_dataspace_dim[1] == 0) {
             std::cout << "Vertex " << _vertexList.size() << std::endl;
             _vertexList.push_back(std::make_shared<GeometryTopologyVertex>(vertex_coordinate_buffer[i], vertex_coordinate_buffer[i + 1], vertex_coordinate_buffer[i + 2]));
             std::cout << "Address: " << _vertexList[_vertexList.size() - 1] << std::endl;
+
+            auto get_computational_grid_coordinate = [](double min_coordinate, double max_coordinate, double real_coordinate) {
+                return (real_coordinate - min_coordinate) / (max_coordinate - min_coordinate);
+            };
+
+            _vertexList[_vertexList.size() - 1]->upsertAttribute("computational_grid", 
+                { 
+                    get_computational_grid_coordinate(min_coordinate[0], max_coordinate[0], vertex_coordinate_buffer[i]),
+                    get_computational_grid_coordinate(min_coordinate[1], max_coordinate[1], vertex_coordinate_buffer[i + 1]),
+                    get_computational_grid_coordinate(min_coordinate[2], max_coordinate[2], vertex_coordinate_buffer[i + 2])
+                }
+            );
+
+            /*if (temperature_buffer.size() > 0) {
+                _vertexList[_vertexList.size() - 1]->upsertAttribute("temperature", {temperature_buffer[_vertexList.size() - 1]});
+            }*/
         }
     }
 
@@ -109,7 +201,7 @@ void InputHDF5Adapter::readGeometryDataset(hid_t parent_group) {
     H5Dclose(geometry_dataset);
 }
 
-void InputHDF5Adapter::readWireTopologyDataset(hid_t parent_group) {
+void InputHDF5Adapter::readWireTopologyDataset(hid_t file, hid_t parent_group) {
     std::cout << "----------------------------------------------------" << std::endl;
 
     // Deserialization
@@ -208,7 +300,7 @@ void InputHDF5Adapter::readWireTopologyDataset(hid_t parent_group) {
     H5Dclose(wire_topology_dataset);
 }
 
-void InputHDF5Adapter::readShellTopologyDataset(hid_t parent_group) {
+void InputHDF5Adapter::readShellTopologyDataset(hid_t file, hid_t parent_group) {
     std::cout << "----------------------------------------------------" << std::endl;
 
     // Deserialization

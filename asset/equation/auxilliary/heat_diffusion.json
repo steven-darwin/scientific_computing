@@ -1,25 +1,66 @@
 {
-    "constants": [
-        {
-            "id": "c_1",
-            "name": "boltzmann constant",
-            "type": "material_property",
-            "symbol": "k"
-        }
-    ],
-    "variables": [
-        {
-            "id": "v_1",
-            "name": "Temperature",
-            "symbol": "T",
-            "function_ptr": null
-        }
-    ],
-    "terms": [
-        {
-            "id": "t_1",
-            "type": "composite",
-            "terms": []
-        }
-    ]
+    "operator": {
+        "id": "o1",
+        "type": "="
+    },
+    "rhs": {
+        "id": "t1",
+        "type": "composite",
+        "operator": {
+            "id": "o2",
+            "type": "d/dx"
+        },
+        "terms": [
+            {
+                "id": "t2",
+                "type": "polynomial",
+                "power": 1,
+                "base": {
+                    "id": "v1",
+                    "type": "variable",
+                    "category": "dependent"
+                    "name": "Temperature",
+                    "symbol": "T"
+                }
+            }
+        ]
+    },
+    "lhs": {
+        "id": "t3",
+        "type": "composite",
+        "operator": {
+            "id": "o3",
+            "type": "x"
+        },
+        "terms": [
+            {
+                "id": "c1",
+                "type": "constant",
+                "category": "physical_property",
+                "name": "thermal_diffusivity",
+                "value": null
+            },
+            {
+                "id": "t4",
+                "type": "composite",
+                "operator": {
+                    "id": "o4",
+                    "type": "d/dx"
+                },
+                "terms": [
+                    {
+                        "id": "t2",
+                        "type": "polynomial",
+                        "power": 1,
+                        "base": {
+                            "id": "v1",
+                            "type": "variable",
+                            "name": "Temperature",
+                            "symbol": "T"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
 }

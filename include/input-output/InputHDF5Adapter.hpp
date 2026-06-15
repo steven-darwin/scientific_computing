@@ -56,13 +56,13 @@ private:
     std::shared_ptr<GeometryTopologyComposite> _composite = nullptr;
 
     /** Method to read geometry dataset */
-    void readGeometryDataset(hid_t parent_group);
+    void readGeometryDataset(hid_t file, hid_t parent_group);
 
     /** Method to read topology - by wires dataset */
-    void readWireTopologyDataset(hid_t parent_group);
+    void readWireTopologyDataset(hid_t file, hid_t parent_group);
 
     /** Method to read topology - by shells dataset */
-    void readShellTopologyDataset(hid_t parent_group);
+    void readShellTopologyDataset(hid_t file, hid_t parent_group);
 
 };
 
